@@ -1,7 +1,6 @@
 #pragma once
 
 #include <random>
-#include <string>
 #include <vector>
 
 struct Dataset {
@@ -9,4 +8,4 @@ struct Dataset {
     std::vector<double> samples;
 };
 
-std::vector<Dataset> simulateDatasets(size_t sampleCount, std::mt19937_64& rng);
+std::vector<Dataset> simulateDatasets(size_t sampleCount, size_t groupCount, std::mt19937_64& rng);

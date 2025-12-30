@@ -46,3 +46,25 @@ double log1pExp(double x) {
     }
     return std::log1p(std::exp(x));
 }
+
+// Computes the population kurtosis using the provided mean.
+double kurtosis(const std::vector<double>& data, double mean) {
+    if (data.empty()) {
+        return 0.0;
+    }
+    double m2 = 0.0;
+    double m4 = 0.0;
+    for (double x : data) {
+        double diff = x - mean;
+        double diff2 = diff * diff;
+        m2 += diff2;
+        m4 += diff2 * diff2;
+    }
+    if (m2 == 0.0) {
+        return 0.0;
+    }
+    double n = static_cast<double>(data.size());
+    m2 /= n;
+    m4 /= n;
+    return m4 / (m2 * m2);
+}

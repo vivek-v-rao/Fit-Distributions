@@ -43,14 +43,15 @@ double generalizedErrorKurtosis(double power) {
     return (gamma5 * gamma1) / (gamma3 * gamma3);
 }
 
-// Generates GED samples using a simple power-transformed exponential method.
+// Generates GED samples using the gamma transformation method.
 std::vector<double> rged(size_t n, double mu, double beta, double power, std::mt19937_64& rng) {
+    std::gamma_distribution<double> gammaDist(1.0 / power, 1.0);
     std::uniform_real_distribution<double> uniform(0.0, 1.0);
     std::vector<double> samples(n);
     for (double& value : samples) {
-        double u = uniform(rng) - 0.5;
-        double sign = (u >= 0) ? 1.0 : -1.0;
-        double magnitude = std::pow(-std::log(1.0 - 2.0 * std::abs(u)), 1.0 / power);
+        double y = gammaDist(rng);
+        double magnitude = std::pow(y, 1.0 / power);
+        double sign = (uniform(rng) < 0.5) ? -1.0 : 1.0;
         value = mu + sign * beta * magnitude;
     }
     return samples;

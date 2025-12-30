@@ -9,8 +9,14 @@
 
 #include "model_registry.hpp"
 #include "simulation.hpp"
+#include "stats.hpp"
 
 namespace {
+struct RunConfig {
+    uint64_t seed;
+    size_t groupCount;
+};
+
 uint64_t chooseAutoSeed() {
     // Generates a fresh seed using entropy from random_device.
     std::random_device rd;
@@ -18,16 +24,27 @@ uint64_t chooseAutoSeed() {
     return seed;
 }
 
-uint64_t determineSeed(int argc, char** argv) {
-    // Returns the user-provided seed or generates a new one if none/invalid supplied.
+RunConfig determineRunConfig(int argc, char** argv) {
+    // Returns the run configuration based on optional seed/group command-line inputs.
+    uint64_t seed = chooseAutoSeed();
+    size_t groups = 5;
     if (argc > 1) {
         try {
-            return std::stoull(argv[1]);
+            seed = std::stoull(argv[1]);
         } catch (const std::exception&) {
             std::cerr << "Invalid seed '" << argv[1] << "', generating one automatically.\n";
+            seed = chooseAutoSeed();
         }
     }
-    return chooseAutoSeed();
+    if (argc > 2) {
+        try {
+            groups = std::max<size_t>(1, std::stoull(argv[2]));
+        } catch (const std::exception&) {
+            std::cerr << "Invalid group count '" << argv[2] << "', defaulting to 5.\n";
+            groups = 5;
+        }
+    }
+    return {seed, groups};
 }
 
 void printTableHeader() {
@@ -64,6 +81,17 @@ void printDatasetReport(const Dataset& dataset, const std::vector<ModelEntry>& r
     // Prints the per-model fit table for a dataset and a ranking line.
     std::cout << "Dataset: " << dataset.name << " (" << dataset.samples.size() << " samples)\n";
     printTableHeader();
+
+    double empiricalMean = mean(dataset.samples);
+    double empiricalStd = std::sqrt(variance(dataset.samples, empiricalMean));
+    double empiricalKurt = kurtosis(dataset.samples, empiricalMean);
+
+    std::cout << std::left << std::setw(18) << "Empirical"
+              << std::right << std::setw(15) << "nan"
+              << std::setw(15) << std::fixed << std::setprecision(3) << empiricalMean
+              << std::setw(15) << empiricalStd
+              << std::setw(15) << empiricalKurt << "\n";
+
     std::vector<FitSummary> summaries;
     summaries.reserve(registry.size());
     for (const auto& entry : registry) {
@@ -81,12 +109,13 @@ void printDatasetReport(const Dataset& dataset, const std::vector<ModelEntry>& r
 
 int main(int argc, char** argv) {
     // Simulates datasets and evaluates every model on each sample set.
-    constexpr size_t sampleCount = 100000;
-    uint64_t seed = determineSeed(argc, argv);
-    std::cout << "Seed: " << seed << "\n\n";
-    std::mt19937_64 rng(seed);
+    constexpr size_t sampleCount = 1000;
+    RunConfig config = determineRunConfig(argc, argv);
+    std::cout << "Seed: " << config.seed << "\n";
+    std::cout << "Groups: " << config.groupCount << "\n\n";
+    std::mt19937_64 rng(config.seed);
 
-    std::vector<Dataset> datasets = simulateDatasets(sampleCount, rng);
+    std::vector<Dataset> datasets = simulateDatasets(sampleCount, config.groupCount, rng);
     const std::vector<ModelEntry>& registry = modelRegistry();
 
     for (const auto& dataset : datasets) {
